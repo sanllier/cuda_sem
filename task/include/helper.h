@@ -42,29 +42,30 @@ int selectCUDADevice()
 
 //NOTE: srand before this function needed
 template< typename T >
-void initializeRandomArray( T* arr, size_t len )
+void initializeRandomArray( cudaPitchedPtr& arr )
 {
-    for ( size_t i = 0; i < len; ++i )
-        arr[i] = T( rand() % MAX_RAND_VAL );
+    for ( int i = 0; i < arr.xsize; ++i )
+        for ( int q = 0; q < arr.ysize; ++q )
+            get_elem( arr, i, q ) =  T( rand() % MAX_RAND_VAL );
 }
 
 //---------------------------------------------------------------
 
 template< typename T >
-bool hostMul( const T* aMat, const T* bMat, T* cMat, int aH, int aW, int bW )
+bool hostMul( const cudaPitchedPtr& aMat, const cudaPitchedPtr& bMat, cudaPitchedPtr* cMat )
 {
-    if ( aH <= 0 || aW <= 0 || bW <= 0 || !aMat || !bMat || !cMat )
+    if ( aMat.xsize <= 0 || aMat.ysize <= 0 || bMat.xsize <= 0 || bMat.ysize <= 0 || aMat.ysize != bMat.xsize || !cMat )
         return false;
 
-    for ( int i = 0; i < aH; ++i )
+    for ( int i = 0; i < aMat.xsize; ++i )
     {
-        for ( int q = 0; q < bW; ++q )
+        for ( int q = 0; q < bMat.ysize; ++q )
         {
-            int cMatPos = i * bW + q;
-            cMat[ cMatPos ] = T(0);
+            T temp = T(0);
+            for ( int k = 0; k < aMat.ysize; ++k )
+                temp += get_elem( aMat, i, k ) * get_elem( bMat, k, q );
 
-            for ( int k = 0; k < aW; ++k )
-              cMat[ cMatPos ] += aMat[ i * aW + k ] * bMat[ k * bW + q ];
+            get_elem( (*cMat), i, q ) = temp;
         }
     }
     return true;
@@ -92,16 +93,25 @@ bool printMatrix( std::ostream& oStr, const T* mat, int h, int w )
 //---------------------------------------------------------------
 
 template< typename T >
-bool cmpMatrix( const T* aMat, const T* bMat, int h, int w, T eps = T(0) )
+bool cmpMatrix( const cudaPitchedPtr& aMat, const cudaPitchedPtr& bMat, T eps = T(0) )
 {
-    for ( int i = 0; i < h * w; ++i )
+    if ( aMat.xsize != bMat.xsize || aMat.ysize != bMat.ysize )
     {
-        if ( fabs( aMat[i] - bMat[i] ) > eps )
-        {
-            std::cout << "| " << aMat[i] << " - " << bMat[i] << " | = " << fabs( aMat[i] - bMat[i] ) << " > " << eps << "\r\n"; 
-            return false;
-        }
+        std::cout << "Unequal sizes\r\n";
+        return false;
     }
+
+    for ( int i = 0; i < aMat.xsize; ++i )
+    {
+        for ( int q = 0; q < aMat.ysize; ++q )
+            if ( fabs( get_elem( aMat, i, q ) - get_elem( bMat, i, q ) ) < eps )
+            {
+                std::cout << "| " << get_elem( aMat, i, q ) << " - " << get_elem( bMat, i, q ) << " | = " \
+                          << fabs( get_elem( aMat, i, q ) - get_elem( bMat, i, q ) ) << " > " << eps << "\r\n"; 
+                return false;
+            }
+    }
+
 
     return true;
 }

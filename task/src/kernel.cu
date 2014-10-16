@@ -4,11 +4,9 @@
 
 #include <cstdio>
 
-#define get_elem( _pptr_, _row_, _col_ ) ( *( ( MATRIX_TYPE* )( ( char* )_pptr_.ptr + _row_ * _pptr_.pitch ) + _col_ ) )
-
 //---------------------------------------------------------------
 
-__global__ void sum_kernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW )
+__global__ void partOneTwoKernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW )
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -24,11 +22,20 @@ __global__ void sum_kernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitche
 
 //---------------------------------------------------------------
 
-void launchKernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW )
+void launchPartOneKernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW )
 {
    dim3 block = dim3 ( BLOCK_SIZE, BLOCK_SIZE );
    dim3 grid = dim3 ( aH / BLOCK_SIZE, bW / BLOCK_SIZE );
-   SAFE_KERNEL_CALL( ( sum_kernel<<< grid, block >>>( aDev, bDev, cDev, aH, aW, bW ) ) );
+   SAFE_KERNEL_CALL( ( partOneTwoKernel<<< grid, block >>>( aDev, bDev, cDev, aH, aW, bW ) ) );
+}
+
+//---------------------------------------------------------------
+
+void launchPartTwoKernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW )
+{
+   dim3 block = dim3 ( BLOCK_SIZE, BLOCK_SIZE );
+   dim3 grid = dim3 ( aH / BLOCK_SIZE, bW / BLOCK_SIZE );
+   SAFE_KERNEL_CALL( ( partOneTwoKernel<<< grid, block >>>( aDev, bDev, cDev, aH, aW, bW ) ) );
 }
 
 //---------------------------------------------------------------
