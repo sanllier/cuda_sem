@@ -4,8 +4,11 @@
 #include "cuda_runtime.h"
 #include "cudaErrorHandler.h"
 
+#include "defs.h"
+
 #include <iostream>
 #include <cstdlib>
+#include <cmath>
 
 //---------------------------------------------------------------
 
@@ -13,23 +16,25 @@ int selectCUDADevice()
 {
    int deviceCount = 0;
    int suitableDevice = -1;
-   cudaDeviceProp devProp;  
+   cudaDeviceProp devProp;
 
    SAFE_CALL( cudaGetDeviceCount( &deviceCount ) );
-   std::cout << "Found " << deviceCount << " devices: \r\n";   
+   std::cout << "Found " << deviceCount << " devices: \r\n";
    for ( int device = 0; device < deviceCount; ++device )
    {
        SAFE_CALL( cudaGetDeviceProperties ( &devProp, device ) );
-       
+
        std::cout << "Device: " << device                                               << std::endl;
        std::cout << "   Compute capability: " << devProp.major << "." << devProp.minor << std::endl;
        std::cout << "   Name: " << devProp.name                                        << std::endl;
        std::cout << "   Total Global Memory: " << devProp.totalGlobalMem               << std::endl;
        std::cout << "   Shared Memory Per Block: " << devProp.sharedMemPerBlock        << std::endl;
-       
+
        if( devProp.major >= 2 )
           suitableDevice = device ;
    }
+   if ( suitableDevice > -1 )
+       std::cout << "Suitable device: " << suitableDevice << "\r\n";
    return suitableDevice;
 }
 
@@ -39,9 +44,8 @@ int selectCUDADevice()
 template< typename T >
 void initializeRandomArray( T* arr, size_t len )
 {
-    static int MAX_VAL = 32768; 
     for ( size_t i = 0; i < len; ++i )
-        arr[i] = T( rand() % MAX_VAL );
+        arr[i] = T( rand() % MAX_RAND_VAL );
 }
 
 //---------------------------------------------------------------
@@ -59,7 +63,7 @@ bool hostMul( const T* aMat, const T* bMat, T* cMat, int aH, int aW, int bW )
             int cMatPos = i * bW + q;
             cMat[ cMatPos ] = T(0);
 
-            for ( int k = 0; k < aW )
+            for ( int k = 0; k < aW; ++k )
               cMat[ cMatPos ] += aMat[ i * aW + k ] * bMat[ k * bW + q ];
         }
     }
@@ -75,8 +79,12 @@ bool printMatrix( std::ostream& oStr, const T* mat, int h, int w )
         return false;
 
     for ( int i = 0; i < h; ++i )
+    {
         for ( int q = 0; q < w; ++q )
-            oStr << mat[ i * w + q ];
+            oStr << mat[ i * w + q ] << " ";
+
+        oStr << "\r\n";
+    }
 
     return true;
 }
@@ -87,8 +95,13 @@ template< typename T >
 bool cmpMatrix( const T* aMat, const T* bMat, int h, int w, T eps = T(0) )
 {
     for ( int i = 0; i < h * w; ++i )
-        if ( fabs( aMat[i] - bMat[i] ) >= eps )
+    {
+        if ( fabs( aMat[i] - bMat[i] ) > eps )
+        {
+            std::cout << "| " << aMat[i] << " - " << bMat[i] << " | = " << fabs( aMat[i] - bMat[i] ) << " > " << eps << "\r\n"; 
             return false;
+        }
+    }
 
     return true;
 }

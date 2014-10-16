@@ -49,25 +49,24 @@ int main( int argc, char** argv )
         hostMul( aHost, bHost, cHost, mataH, mataW, matbW );
     }
 
-    cudaPitchedPtr aPitchedPtr = make_cudaPitchedPtr( 0, 0, mataW, mataH );
-    cudaPitchedPtr bPitchedPtr = make_cudaPitchedPtr( 0, 0, matbW, mataW );
-    cudaPitchedPtr cPitchedPtr = make_cudaPitchedPtr( 0, 0, matbW, mataH );
-
+    cudaPitchedPtr aPitchedPtr;
+    cudaPitchedPtr bPitchedPtr;
+    cudaPitchedPtr cPitchedPtr;
     SAFE_CALL( cudaMallocPitch( &aPitchedPtr.ptr, &aPitchedPtr.pitch, mataW * sizeof( MATRIX_TYPE ) , mataH ) );
     SAFE_CALL( cudaMallocPitch( &bPitchedPtr.ptr, &bPitchedPtr.pitch, matbW * sizeof( MATRIX_TYPE ) , mataW ) );
     SAFE_CALL( cudaMallocPitch( &cPitchedPtr.ptr, &cPitchedPtr.pitch, matbW * sizeof( MATRIX_TYPE ) , mataH ) );
 
-    SAFE_CALL( cudaMemcpy2D( aPitchedPtr.ptr, aPitchedPtr.pitch, aHost, 0, mataW * sizeof( MATRIX_TYPE ), mataH, cudaMemcpyHostToDevice ) );
-    SAFE_CALL( cudaMemcpy2D( bPitchedPtr.ptr, bPitchedPtr.pitch, bHost, 0, matbW * sizeof( MATRIX_TYPE ), mataW, cudaMemcpyHostToDevice ) );
+    SAFE_CALL( cudaMemcpy2D( aPitchedPtr.ptr, aPitchedPtr.pitch, aHost, mataW * sizeof( MATRIX_TYPE ), mataW * sizeof( MATRIX_TYPE ), mataH, cudaMemcpyHostToDevice ) );
+    SAFE_CALL( cudaMemcpy2D( bPitchedPtr.ptr, bPitchedPtr.pitch, bHost, matbW * sizeof( MATRIX_TYPE ), matbW * sizeof( MATRIX_TYPE ), mataW, cudaMemcpyHostToDevice ) );
 
     launchKernel( aPitchedPtr, bPitchedPtr, cPitchedPtr, mataH, mataW, matbW );
 
-    SAFE_CALL( cudaMemcpy2D( cHostFromDev, 0, cPitchedPtr.ptr, cPitchedPtr.pitch, matbW * sizeof( MATRIX_TYPE ), mataH, cudaMemcpyDeviceToHost ) );
+    SAFE_CALL( cudaMemcpy2D( cHostFromDev, matbW * sizeof( MATRIX_TYPE ), cPitchedPtr.ptr, cPitchedPtr.pitch, matbW * sizeof( MATRIX_TYPE ), mataH, cudaMemcpyDeviceToHost ) );
 
     //-----------------------------------------------------------
 
     if ( isCheck )
-        if ( !cmpMatrix( cHost, cHostFromDev, mataH, matbW ) )
+        if ( !cmpMatrix( cHost, cHostFromDev, mataH, matbW, EPS ) )
             std::cout << "CHECK: unequal matrices\r\n";
 
     //-----------------------------------------------------------
