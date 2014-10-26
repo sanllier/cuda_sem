@@ -4,8 +4,7 @@
 //---------------------------------------------------------------
 
 #define MATRIX_TYPE int
-#define BLOCK_SIZE 2
-#define MAX_RAND_VAL RAND_MAX
+#define MAX_RAND_VAL 3
 #define EPS 0
 
 //---------------------------------------------------------------

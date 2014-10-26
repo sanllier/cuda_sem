@@ -44,8 +44,8 @@ int selectCUDADevice()
 template< typename T >
 void initializeRandomArray( cudaPitchedPtr& arr )
 {
-    for ( int i = 0; i < arr.xsize; ++i )
-        for ( int q = 0; q < arr.ysize; ++q )
+    for ( int i = 0; i < arr.ysize; ++i )
+        for ( int q = 0; q < arr.xsize; ++q )
             get_elem( arr, i, q ) =  T( rand() % MAX_RAND_VAL );
 }
 
@@ -57,12 +57,12 @@ bool hostMul( const cudaPitchedPtr& aMat, const cudaPitchedPtr& bMat, cudaPitche
     if ( aMat.xsize <= 0 || aMat.ysize <= 0 || bMat.xsize <= 0 || bMat.ysize <= 0 || aMat.ysize != bMat.xsize || !cMat )
         return false;
 
-    for ( int i = 0; i < aMat.xsize; ++i )
+    for ( int i = 0; i < aMat.ysize; ++i )
     {
-        for ( int q = 0; q < bMat.ysize; ++q )
+        for ( int q = 0; q < bMat.xsize; ++q )
         {
             T temp = T(0);
-            for ( int k = 0; k < aMat.ysize; ++k )
+            for ( int k = 0; k < aMat.xsize; ++k )
                 temp += get_elem( aMat, i, k ) * get_elem( bMat, k, q );
 
             get_elem( (*cMat), i, q ) = temp;
@@ -73,21 +73,15 @@ bool hostMul( const cudaPitchedPtr& aMat, const cudaPitchedPtr& bMat, cudaPitche
 
 //---------------------------------------------------------------
 
-template< typename T >
-bool printMatrix( std::ostream& oStr, const T* mat, int h, int w )
+void printMatrix( std::ostream& oStr, const cudaPitchedPtr& mat )
 {
-    if ( !mat || h <= 0 || w <= 0 )
-        return false;
-
-    for ( int i = 0; i < h; ++i )
+    for ( int i = 0; i < mat.ysize; ++i )
     {
-        for ( int q = 0; q < w; ++q )
-            oStr << mat[ i * w + q ] << " ";
+        for ( int q = 0; q < mat.xsize; ++q )
+            oStr << get_elem( mat, i, q ) << " ";
 
         oStr << "\r\n";
     }
-
-    return true;
 }
 
 //---------------------------------------------------------------
@@ -101,9 +95,9 @@ bool cmpMatrix( const cudaPitchedPtr& aMat, const cudaPitchedPtr& bMat, T eps = 
         return false;
     }
 
-    for ( int i = 0; i < aMat.xsize; ++i )
+    for ( int i = 0; i < aMat.ysize; ++i )
     {
-        for ( int q = 0; q < aMat.ysize; ++q )
+        for ( int q = 0; q < aMat.xsize; ++q )
             if ( fabs( get_elem( aMat, i, q ) - get_elem( bMat, i, q ) ) < eps )
             {
                 std::cout << "| " << get_elem( aMat, i, q ) << " - " << get_elem( bMat, i, q ) << " | = " \
