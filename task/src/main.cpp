@@ -6,6 +6,8 @@
 #include "helper.h"
 #include "parparser.h"
 
+#define PARTONE
+
 //---------------------------------------------------------------
 
 void launchPartOneKernel( cudaPitchedPtr aDev, cudaPitchedPtr bDev, cudaPitchedPtr cDev, int aH, int aW, int bW, int blockH, int blockW );
@@ -59,11 +61,11 @@ int main( int argc, char** argv )
     cudaPitchedPtr cHostFromDev = make_cudaPitchedPtr( new MATRIX_TYPE[ ( mataH + aHOverhead ) * ( matbW + bWOverhead ) ], \
         ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ), matbW, mataH );
 
-    std::memset( aHost.ptr, 0, aHost.pitch * aHost.ysize );
-    std::memset( bHost.ptr, 0, bHost.pitch * bHost.ysize );
-    std::memset( cHostFromDev.ptr, 0, cHostFromDev.pitch * cHostFromDev.ysize );
+    std::memset( aHost.ptr, 0, aHost.pitch * ( mataH + aHOverhead ) );
+    std::memset( bHost.ptr, 0, bHost.pitch * ( mataW + aWOverhead ) );
+    std::memset( cHostFromDev.ptr, 0, cHostFromDev.pitch * ( mataH + aHOverhead ) );
     
-    srand( time( 0U ) );
+    srand( ( unsigned )time( 0U ) );
     initializeRandomArray< MATRIX_TYPE >( aHost );
     initializeRandomArray< MATRIX_TYPE >( bHost );
 
@@ -71,7 +73,7 @@ int main( int argc, char** argv )
     {
         cHost = make_cudaPitchedPtr( new MATRIX_TYPE[ ( mataH + aHOverhead ) * ( matbW + bWOverhead ) ], \
             ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ), matbW, mataH );
-        std::memset( cHost.ptr, 0, cHost.pitch * cHost.ysize );
+        std::memset( cHost.ptr, 0, cHost.pitch * ( mataH + aHOverhead ) );
         hostMul< MATRIX_TYPE >( aHost, bHost, &cHost );
     }
 
@@ -80,15 +82,15 @@ int main( int argc, char** argv )
     cudaPitchedPtr cDev;
     
     #ifdef PARTONE
-        SAFE_CALL( cudaMalloc( &aDev.ptr, mataH * mataW ) );
-        SAFE_CALL( cudaMalloc( &bDev.ptr, matbW * mataW ) );
-        SAFE_CALL( cudaMalloc( &cDev.ptr, mataH * matbW ) );
+        SAFE_CALL( cudaMalloc( &aDev.ptr, mataH * mataW * sizeof( MATRIX_TYPE ) ) );
+        SAFE_CALL( cudaMalloc( &bDev.ptr, matbW * mataW * sizeof( MATRIX_TYPE ) ) );
+        SAFE_CALL( cudaMalloc( &cDev.ptr, mataH * matbW * sizeof( MATRIX_TYPE ) ) );
         aDev.pitch = mataW * sizeof( MATRIX_TYPE );
         bDev.pitch = matbW * sizeof( MATRIX_TYPE );
         cDev.pitch = matbW * sizeof( MATRIX_TYPE );
 
-        SAFE_CALL( cudaMemcpy( aDev.ptr, aHost.ptr, mataH * mataW, cudaMemcpyHostToDevice ) );
-        SAFE_CALL( cudaMemcpy( bDev.ptr, bHost.ptr, matbW * mataW, cudaMemcpyHostToDevice ) );
+        SAFE_CALL( cudaMemcpy( aDev.ptr, aHost.ptr, mataH * mataW * sizeof( MATRIX_TYPE ), cudaMemcpyHostToDevice ) );
+        SAFE_CALL( cudaMemcpy( bDev.ptr, bHost.ptr, matbW * mataW * sizeof( MATRIX_TYPE ), cudaMemcpyHostToDevice ) );
 
         launchPartOneKernel( aDev, bDev, cDev, mataH, mataW, matbW, blockH, blockW );
 
@@ -96,9 +98,9 @@ int main( int argc, char** argv )
     #endif
 
     #ifdef PARTTWO
-        SAFE_CALL( cudaMallocPitch( &aDev.ptr, &aDev.pitch, mataW * sizeof( MATRIX_TYPE ) , mataH ) );
-        SAFE_CALL( cudaMallocPitch( &bDev.ptr, &bDev.pitch, matbW * sizeof( MATRIX_TYPE ) , mataW ) );
-        SAFE_CALL( cudaMallocPitch( &cDev.ptr, &cDev.pitch, matbW * sizeof( MATRIX_TYPE ) , mataH ) );
+        SAFE_CALL( cudaMallocPitch( &aDev.ptr, &aDev.pitch, mataW * sizeof( MATRIX_TYPE ), mataH ) );
+        SAFE_CALL( cudaMallocPitch( &bDev.ptr, &bDev.pitch, matbW * sizeof( MATRIX_TYPE ), mataW ) );
+        SAFE_CALL( cudaMallocPitch( &cDev.ptr, &cDev.pitch, matbW * sizeof( MATRIX_TYPE ), mataH ) );
 
         SAFE_CALL( cudaMemcpy2D( aDev.ptr, aDev.pitch, aHost.ptr, aHost.pitch, mataW * sizeof( MATRIX_TYPE ), mataH, cudaMemcpyHostToDevice ) );
         SAFE_CALL( cudaMemcpy2D( bDev.ptr, bDev.pitch, bHost.ptr, bHost.pitch, matbW * sizeof( MATRIX_TYPE ), mataW, cudaMemcpyHostToDevice ) );
@@ -109,9 +111,9 @@ int main( int argc, char** argv )
     #endif 
 
     #ifdef PARTTHREE
-        SAFE_CALL( cudaMallocPitch( &aDev.ptr, &aDev.pitch, ( mataW + aWOverhead ) * sizeof( MATRIX_TYPE ) , mataH + aHOverhead ) );
-        SAFE_CALL( cudaMallocPitch( &bDev.ptr, &bDev.pitch, ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ) , mataW + aWOverhead ) );
-        SAFE_CALL( cudaMallocPitch( &cDev.ptr, &cDev.pitch, ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ) , matbW + bWOverhead ) );
+        SAFE_CALL( cudaMallocPitch( &aDev.ptr, &aDev.pitch, ( mataW + aWOverhead ) * sizeof( MATRIX_TYPE ), mataH + aHOverhead ) );
+        SAFE_CALL( cudaMallocPitch( &bDev.ptr, &bDev.pitch, ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ), mataW + aWOverhead ) );
+        SAFE_CALL( cudaMallocPitch( &cDev.ptr, &cDev.pitch, ( matbW + bWOverhead ) * sizeof( MATRIX_TYPE ), mataH + aHOverhead ) );
 
         SAFE_CALL( cudaMemcpy2D( aDev.ptr, aDev.pitch, aHost.ptr, aHost.pitch, ( mataW + aWOverhead ) * sizeof( MATRIX_TYPE ), \
             mataH + aHOverhead, cudaMemcpyHostToDevice ) );
